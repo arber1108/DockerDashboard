@@ -1,0 +1,29 @@
+= Container Dashboard
+
+== Ziele
+
+* Container auf einem System sollen angezeigt werden
+* Änderungen in der Anzahl und dem Status der Container sollen kontinuierlich im Dashboard auch dargestellt werden 
+* Betreffend der Images sollen mögliche Updates aufgezeigt werden
+* Anzeige als Webseite
+* Managen von Containern
+* Image Updates
+* Weitere Infos zum Container wie z.B. CPU Usage etc. darstellen
+
+== Tech Stack
+
+* Docker API (https://docs.docker.com/reference/api/engine/version/v1.52/)
+* NextJS (https://nextjs.org/) mit Custom Server
+* Shadcn (https://ui.shadcn.com/) Component Library
+* Socket.IO (https://socket.io/) für Real Time updates
+
+== Skateboard
+
+* Es soll möglich sein laufende Container im Terminal zu sehen
+* NextJS Ordnerstruktur sollte stehen
+
+=== Offene Fragen
+
+* Brauch ich eine Datenbank? Alte Logs speichern?
+** Sollte man auffällige sachen Speichern? Z.B zu hohe CPU usage an einem Punkt.
+
