@@ -21,6 +21,7 @@
 
 * Es soll möglich sein laufende Container im Terminal zu sehen
 * NextJS Ordnerstruktur sollte stehen
+* Simple darstellung der Container auf der Webseite
 
 == Plan
  1. NextJS setup
