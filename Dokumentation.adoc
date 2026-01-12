@@ -22,6 +22,16 @@
 * Es soll möglich sein laufende Container im Terminal zu sehen
 * NextJS Ordnerstruktur sollte stehen
 
+== Plan
+ 1. NextJS setup
+ 2. Dockerode lernen
+ 3. Socket.IO setup
+ 4. Container anzeigen in Konsole
+ 5. Container darstellen mit Shadcn
+ 6. Realt Time Updates anzeigen mit Socket.IO
+ 7. Container Managen 
+ 8. Image Updates Pullen
+
 === Offene Fragen
 
 * Brauch ich eine Datenbank? Alte Logs speichern?
