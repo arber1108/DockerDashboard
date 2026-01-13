@@ -33,6 +33,13 @@
  7. Container Managen 
  8. Image Updates Pullen
 
+
+== Design Grob
+
+image::images/Homepage.png[]
+image::images/detailpage.png[]
+
+
 === Offene Fragen
 
 * Brauch ich eine Datenbank? Alte Logs speichern?
