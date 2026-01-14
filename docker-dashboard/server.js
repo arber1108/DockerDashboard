@@ -29,7 +29,7 @@ app.prepare().then(() => {
   function monitorDockerEvents() {
     const filters = {
       type: ["container"],
-      event: ["start"],
+      event: ["start", "die", "pause", "stop", "create", "destroy"],
     };
 
     docker.getEvents({ filters }, (err, stream) => {
@@ -42,24 +42,33 @@ app.prepare().then(() => {
         try {
           const eventData = JSON.parse(chunk.toString());
           const container = docker.getContainer(eventData.Actor.ID);
-          const containerInfo = await container.inspect();
 
-          const containerObject = {
-            Id: containerInfo.Id,
-            Name: containerInfo.Name.replace("/", ""),
-            Status: containerInfo.State.Status,
-            Image: containerInfo.Config.Image,
-          };
+          //----Creating new Container----
+          if (eventData.status == "create") {
+            const containerInfo = await container.inspect();
+            console.log(eventData);
+            const containerObject = {
+              Id: containerInfo.Id,
+              Name: containerInfo.Name.replace("/", ""),
+              Status: containerInfo.State.Status,
+              Image: containerInfo.Config.Image,
+            };
 
-          if (containers.some((e) => e.Id == containerObject.Id)) {
-            console.log("already in list");
-          } else {
             containers.push(containerObject);
+            io.emit("new-container", containerObject);
           }
 
-          console.log("Container List: ", containers);
-          console.log(`New container detected: ${containerInfo.Name}`);
-          io.emit("new-container", containerObject);
+          //----Deleting Container----
+          if (eventData.status === "destroy") {
+            const deletedId = eventData.Actor.ID; // Use Actor.ID instead of ID
+            console.log("Removing container with ID:", deletedId);
+
+            // Filter out the deleted container
+            containers = containers.filter((c) => c.Id !== deletedId);
+
+            io.emit("container-deleted", deletedId);
+            console.log("Remaining containers:", containers);
+          }
         } catch (error) {
           console.error("Error processing Event Chunk", error);
         }
@@ -71,27 +80,25 @@ app.prepare().then(() => {
     });
   }
 
-  monitorDockerEvents();
-
   io.on("connection", (socket) => {
     socket.emit("connectToClient");
 
-    docker.listContainers({ all: true }, (err, containers) => {
+    docker.listContainers({ all: true }, (err, containersList) => {
       if (!err) {
-        console.log(containers);
-
-        const data = containers.map((container) => ({
+        const data = containersList.map((container) => ({
           Id: container.Id,
           Name: container.Names[0].replace("/", ""),
           Status: container.State,
           Image: container.Image,
         }));
-
         console.log(data);
+        containers = data; // Replace the array instead of pushing
         socket.emit("initial-containers", data);
       }
     });
   });
+
+  monitorDockerEvents();
 
   httpServer
     .once("error", (err) => {

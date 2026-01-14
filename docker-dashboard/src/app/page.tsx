@@ -41,6 +41,10 @@ export default function Home() {
     socket.on("new-container", (arg) => {
       onNewContainer(arg);
     });
+    socket.on("container-deleted", (arg) => {
+      const newContainerObject = containerObject.filter((c) => c.Id !== arg);
+      setContainerObject(newContainerObject);
+    });
 
     socket.on("initial-containers", (arg) => {
       setContainerObject(arg);
