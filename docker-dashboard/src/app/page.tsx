@@ -12,9 +12,16 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 
+interface Container {
+  Id: string;
+  Name: string;
+  Image: string;
+  Status: string;
+}
+
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
-  const [containerObject, setContainerObject] = useState([]);
+  const [containerObject, setContainerObject] = useState<Container[]>([]);
 
   useEffect(() => {
     function onConnect() {
@@ -25,7 +32,7 @@ export default function Home() {
       setIsConnected(false);
     }
 
-    function onNewContainer(newContainer) {
+    function onNewContainer(newContainer: Container) {
       setContainerObject((prev) => [...prev, newContainer]);
     }
 
