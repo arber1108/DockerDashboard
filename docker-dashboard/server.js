@@ -79,7 +79,16 @@ app.prepare().then(() => {
     docker.listContainers({ all: true }, (err, containers) => {
       if (!err) {
         console.log(containers);
-        socket.emit("initial-containers", containers);
+
+        const data = containers.map((container) => ({
+          Id: container.Id,
+          Name: container.Names[0].replace("/", ""),
+          Status: container.State,
+          Image: container.Image,
+        }));
+
+        console.log(data);
+        socket.emit("initial-containers", data);
       }
     });
   });
