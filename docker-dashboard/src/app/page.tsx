@@ -10,6 +10,7 @@ import {
 import { socket } from "../socket";
 import { useState } from "react";
 import { useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
@@ -69,9 +70,20 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm font-mono bg-slate-100 p-2 rounded">
+              <Badge
+                variant="outline"
+                className={
+                  container.Status === "running"
+                    ? "border-emerald-500 text-emerald-500"
+                    : container.Status === "exited"
+                    ? "border-rose-500 text-rose-500"
+                    : container.Status === "paused"
+                    ? "border-yellow-500 text-yellow-500"
+                    : "border-slate-500"
+                }
+              >
                 {container.Status}
-              </p>
+              </Badge>
             </CardContent>
           </Card>
         ))}

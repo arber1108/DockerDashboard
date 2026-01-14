@@ -8,6 +8,7 @@
 * Anzeige als Webseite
 * Managen von Containern
 * Image Updates
+* Images anzeigen
 * Weitere Infos zum Container wie z.B. CPU Usage etc. darstellen
 
 == Tech Stack
