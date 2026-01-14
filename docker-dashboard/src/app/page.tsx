@@ -1,7 +1,6 @@
 "use client";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -84,7 +83,7 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-5">
         {containerObject.map((container) => (
-          <Card key={container.Id} className="w-full">
+          <Card key={container.Id} className="w-full border-cyan-200">
             {" "}
             <CardHeader>
               <CardTitle className="truncate">{container.Name}</CardTitle>
