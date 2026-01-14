@@ -13,6 +13,7 @@ import { useEffect } from "react";
 
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
+  const [containerObject, setContainerObject] = useState();
 
   useEffect(() => {
     function onConnect() {
@@ -23,10 +24,20 @@ export default function Home() {
       setIsConnected(false);
     }
 
+    function onNewContainer(containerObject) {
+      setContainerObject(containerObject);
+    }
+
     socket.on("connectToClient", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("new-container", (arg) => {
       console.log(arg);
+      onNewContainer(arg);
+    });
+
+    socket.on("initial-containers", (arg) => {
+      console.log(arg);
+      setContainerObject(arg);
     });
 
     return () => {
@@ -44,18 +55,20 @@ export default function Home() {
         <p>Status: {isConnected ? "connected" : "disconnected"}</p>
       </div>
       <div className="flex flex-row gap-3 pt-5 m-5">
-        <div className="w-xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>Container Titel</CardTitle>
-              <CardDescription>Image</CardDescription>
-              <CardAction>Manage Container</CardAction>
-            </CardHeader>
-            <CardContent>
-              <p>Status</p>
-            </CardContent>
-          </Card>
-        </div>
+        {containerObject && (
+          <div className="w-xl">
+            <Card>
+              <CardHeader>
+                <CardTitle>{containerObject.Name}</CardTitle>
+                <CardDescription>{containerObject.Image}</CardDescription>
+                <CardAction>Manage Container</CardAction>
+              </CardHeader>
+              <CardContent>
+                <p>{containerObject.Status}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
