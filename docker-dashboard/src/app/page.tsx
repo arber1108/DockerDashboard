@@ -49,6 +49,18 @@ export default function Home() {
     socket.on("initial-containers", (arg) => {
       setContainerObject(arg);
     });
+    socket.on("status-change", (arg) => {
+      console.log("UpdatedContaienrObj: ", arg);
+
+      let updatedContainerObj = containerObject.map((item) => {
+        if (item.Id === arg.Id) {
+          return { ...item, Status: arg.Status };
+        }
+        return item;
+      });
+
+      setContainerObject(updatedContainerObj);
+    });
 
     return () => {
       socket.off("connect", onConnect);
@@ -56,10 +68,9 @@ export default function Home() {
       socket.off("new-container");
       socket.off("initial-containers");
       socket.off("container-deleted");
+      socket.off("status-change");
     };
-  }, []);
-
-  console.log("Containerobject: ", containerObject);
+  }, [containerObject]);
 
   return (
     <div className="flex flex-col min-h-screen">

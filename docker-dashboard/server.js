@@ -69,6 +69,21 @@ app.prepare().then(() => {
             io.emit("container-deleted", deletedId);
             console.log("Remaining containers:", containers);
           }
+
+          //----Status Change----
+          if (
+            eventData.status === "start" ||
+            eventData.status === "stop" ||
+            eventData.status === "die" ||
+            eventData.status === "pause"
+          ) {
+            const containerInfo = await container.inspect();
+            const statusChangeObj = {
+              Id: containerInfo.Id,
+              Status: containerInfo.State.Status,
+            };
+            io.emit("status-change", statusChangeObj);
+          }
         } catch (error) {
           console.error("Error processing Event Chunk", error);
         }
