@@ -55,6 +55,7 @@ export default function Home() {
       socket.off("disconnect", onDisconnect);
       socket.off("new-container");
       socket.off("initial-containers");
+      socket.off("container-deleted");
     };
   }, []);
 

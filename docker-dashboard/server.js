@@ -60,7 +60,7 @@ app.prepare().then(() => {
 
           //----Deleting Container----
           if (eventData.status === "destroy") {
-            const deletedId = eventData.Actor.ID; // Use Actor.ID instead of ID
+            const deletedId = eventData.Actor.ID;
             console.log("Removing container with ID:", deletedId);
 
             // Filter out the deleted container
@@ -92,7 +92,7 @@ app.prepare().then(() => {
           Image: container.Image,
         }));
         console.log(data);
-        containers = data; // Replace the array instead of pushing
+        containers = data;
         socket.emit("initial-containers", data);
       }
     });
