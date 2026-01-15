@@ -10,6 +10,7 @@ import { socket } from "../socket";
 import { useState } from "react";
 import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Settings } from "lucide-react";
 
 interface Container {
   Id: string;
@@ -86,26 +87,36 @@ export default function Home() {
           <Card key={container.Id} className="w-full border-cyan-200">
             {" "}
             <CardHeader>
-              <CardTitle className="truncate">{container.Name}</CardTitle>
+              <div className="flex justify-between">
+                <CardTitle className="truncate">{container.Name} </CardTitle>
+                {/*TODO: Add Hover animation*/}
+                <a href={`/containers/${container.Id}`}>
+                  <Settings></Settings>
+                </a>
+              </div>
               <CardDescription className="truncate">
                 {container.Image}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Badge
-                variant="outline"
-                className={
-                  container.Status === "running"
-                    ? "border-emerald-500 text-emerald-500"
-                    : container.Status === "exited"
-                    ? "border-rose-500 text-rose-500"
-                    : container.Status === "paused"
-                    ? "border-yellow-500 text-yellow-500"
-                    : "border-slate-500"
-                }
-              >
-                {container.Status}
-              </Badge>
+              <div className="flex gap-2.5">
+                <Badge
+                  variant="outline"
+                  className={
+                    container.Status === "running"
+                      ? "border-emerald-500 text-emerald-500"
+                      : container.Status === "exited"
+                      ? "border-rose-500 text-rose-500"
+                      : container.Status === "paused"
+                      ? "border-yellow-500 text-yellow-500"
+                      : "border-slate-500"
+                  }
+                >
+                  {container.Status}
+                </Badge>
+
+                <p className="text-[0.7em] pt-[0.190rem]">ID: {container.Id}</p>
+              </div>
             </CardContent>
           </Card>
         ))}

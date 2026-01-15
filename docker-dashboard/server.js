@@ -2,8 +2,6 @@ import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import Docker from "dockerode";
-import { Contact } from "lucide-react";
-import { ALL } from "node:dns";
 
 var socket =
   process.platform === "win32"
@@ -26,6 +24,7 @@ app.prepare().then(() => {
   const io = new Server(httpServer);
 
   let containers = [];
+
   function monitorDockerEvents() {
     const filters = {
       type: ["container"],
