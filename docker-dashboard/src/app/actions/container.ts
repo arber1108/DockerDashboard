@@ -25,6 +25,22 @@ async function getContainerStats(Id: string) {
   try {
     const container = docker.getContainer(Id);
     const containerStats = await container.stats({ stream: false });
+    const cpuDelta =
+      containerStats.cpu_stats.cpu_usage.total_usage -
+      containerStats.precpu_stats.cpu_usage.total_usage;
+    const systemDelta =
+      containerStats.cpu_stats.system_cpu_usage -
+      containerStats.precpu_stats.system_cpu_usage;
+    const cpuCores = containerStats.cpu_stats.online_cpus || 1;
+
+    let cpuPercent = 0;
+    if (systemDelta > 0 && cpuDelta > 0) {
+      cpuPercent = (cpuDelta / systemDelta) * cpuCores * 100.0;
+    }
+
+    const formattedCpuPercent = parseFloat(cpuPercent.toFixed(2));
+    console.log("CPU Percentage: ", formattedCpuPercent);
+
     return containerStats;
   } catch (error) {
     console.log("Error in getContainerStats:", error);

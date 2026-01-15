@@ -1,7 +1,4 @@
-import {
-  getContainerById,
-  getContainerStats,
-} from "@/app/actions/getContainerById";
+import { getContainerById, getContainerStats } from "@/app/actions/container";
 
 export default async function ContainerDetails({
   params,
