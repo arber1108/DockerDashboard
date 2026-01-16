@@ -1,6 +1,25 @@
 version: "3.8"
 
 services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: docker-dashboard-postgres
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docker-dashboard-network
+
   docker-dashboard:
     build: .
     ports:
@@ -8,4 +27,22 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV}
+      - DATABASE_URL=${DATABASE_URL}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - docker-dashboard-network
+
+volumes:
+  postgres_data:
+
+networks:
+  docker-dashboard-network:
+    driver: bridge

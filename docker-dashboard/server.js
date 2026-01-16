@@ -18,12 +18,12 @@ const port = 3000;
 const app = next({ dev, hostname, port });
 const handler = app.getRequestHandler();
 
+let containers = [];
+
 app.prepare().then(() => {
   const httpServer = createServer(handler);
 
   const io = new Server(httpServer);
-
-  let containers = [];
 
   function monitorDockerEvents() {
     const filters = {
@@ -94,25 +94,60 @@ app.prepare().then(() => {
     });
   }
 
+  docker.listContainers({ all: true }, (err, containersList) => {
+    if (!err) {
+      const data = containersList.map((container) => ({
+        Id: container.Id,
+        Name: container.Names[0].replace("/", ""),
+        Status: container.State,
+        Image: container.Image,
+      }));
+
+      console.log("Contaienr-Data: ", data);
+      containers = data;
+    } else {
+      console.log("Error listing containers: ", err);
+    }
+  });
+
   io.on("connection", (socket) => {
     socket.emit("connectToClient");
-
-    docker.listContainers({ all: true }, (err, containersList) => {
-      if (!err) {
-        const data = containersList.map((container) => ({
-          Id: container.Id,
-          Name: container.Names[0].replace("/", ""),
-          Status: container.State,
-          Image: container.Image,
-        }));
-        console.log(data);
-        containers = data;
-        socket.emit("initial-containers", data);
-      }
-    });
+    socket.emit("initial-containers", containers);
   });
 
   monitorDockerEvents();
+
+  //----Container Stats Stream----
+  async function monitorContainerStats() {
+    try {
+      const container = docker.getContainer(
+        "a6041512c24fb8fb4cfdcc95245428a8131581e471e3e5311b696dacdf52c3de"
+      );
+
+      const stream = await container.stats({ stream: true });
+
+      console.log("Attached to stats stream...");
+      stream.setEncoding("utf8");
+
+      stream.on("data", (chunk) => {
+        try {
+          const data = JSON.parse(chunk);
+        } catch (err) {
+          console.error("Error parsing Chunk:", err);
+        }
+      });
+
+      stream.on("end", () => {
+        console.log("Stream ended");
+      });
+
+      stream.on("error", (error) => {
+        console.error("Stream error:", error);
+      });
+    } catch (error) {
+      console.error("Failed to get Stats: ", error);
+    }
+  }
 
   httpServer
     .once("error", (err) => {
