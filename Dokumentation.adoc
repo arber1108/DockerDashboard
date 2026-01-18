@@ -10,6 +10,7 @@
 * Image Updates
 * Images anzeigen
 * Weitere Infos zum Container wie z.B. CPU Usage etc. darstellen
+* Container Metrics speichern
 
 == Tech Stack
 
@@ -17,6 +18,7 @@
 * NextJS (https://nextjs.org/) mit Custom Server
 * Shadcn (https://ui.shadcn.com/) Component Library
 * Socket.IO (https://socket.io/) für Real Time updates
+* PostgresDB mit TimescaleDB plugin
 
 == Skateboard
 
@@ -31,8 +33,9 @@
  4. Container anzeigen in Konsole
  5. Container darstellen mit Shadcn
  6. Realt Time Updates anzeigen mit Socket.IO
- 7. Container Managen 
- 8. Image Updates Pullen
+ 8. Daten Speichern in DB
+ 9. Container Managen 
+ 10. Image Updates Pullen
 
 
 == Design Grob
@@ -40,9 +43,98 @@
 image::images/Homepage.png[]
 image::images/detailpage.png[]
 
+== Datenbank Schema
 
-=== Offene Fragen
+image::images/db.png[]
 
-* Brauch ich eine Datenbank? Alte Logs speichern?
-** Sollte man auffällige sachen Speichern? Z.B zu hohe CPU usage an einem Punkt.
+=== Container Tabelle
+Speichert alle Container die auf dem System existieren.
+
+[cols="1,1,2"]
+|===
+|Spalte |Typ |Beschreibung
+
+|id |SERIAL PRIMARY KEY |Eindeutige ID in der Datenbank
+|docker_id |VARCHAR(64) UNIQUE |Docker Container ID
+|name |VARCHAR(255) |Container Name
+|created_at |TIMESTAMPTZ |Zeitpunkt der Erstellung
+|image |VARCHAR(255) |Docker Image Name
+|===
+
+=== Container Metrics Tabelle (Hypertable)
+Speichert CPU und Memory Metriken als Zeitreihen-Daten.
+
+[cols="1,1,2"]
+|===
+|Spalte |Typ |Beschreibung
+
+|time |TIMESTAMPTZ |Zeitstempel der Messung
+|container_id |INTEGER (FK) |Referenz zur Container Tabelle
+|cpu_usage_percent |DOUBLE PRECISION |CPU Auslastung in Prozent
+|memory_usage_mb |DOUBLE PRECISION |Speicherverbrauch in MB
+|===
+
+== Server Architektur
+
+Der Custom Server (`server.js`) verwendet:
+
+* *Next.js* für das Frontend Rendering
+* *Socket.IO* für Echtzeit-Kommunikation mit dem Client
+* *Dockerode* für die Kommunikation mit der Docker API
+* *pg* für die PostgreSQL/TimescaleDB Verbindung
+
+=== Socket.IO Events
+
+[cols="1,1,2"]
+|===
+|Event |Richtung |Beschreibung
+
+|`connectToClient` |Server → Client |Bestätigt die Verbindung
+|`initial-containers` |Server → Client |Sendet alle Container beim Connect
+|`new-container` |Server → Client |Neuer Container wurde erstellt
+|`container-deleted` |Server → Client |Container wurde gelöscht
+|`status-change` |Server → Client |Container Status hat sich geändert
+|===
+
+=== Docker Events
+
+Der Server überwacht folgende Docker Events:
+
+* `create` - Container erstellt
+* `start` - Container gestartet
+* `stop` - Container gestoppt
+* `die` - Container beendet
+* `pause` - Container pausiert
+* `destroy` - Container gelöscht
+
+== Entwicklung
+
+=== Voraussetzungen
+* Node.js
+* Docker Desktop
+* TimescaleDB Container
+
+=== Setup
+[source,bash]
+----
+# TimescaleDB starten
+docker compose up -d timescaledb
+
+# Dependencies installieren
+npm install
+
+# Development Server starten
+npm run dev
+----
+
+=== Umgebungsvariablen (.env)
+[source]
+----
+POSTGRES_USER=<username>
+POSTGRES_PASSWORD=<password>
+POSTGRES_DB=docker_dashboard
+NODE_ENV=development
+DATABASE_URL=postgresql://<user>:<password>@localhost:5432/docker_dashboard
+----
+
 
