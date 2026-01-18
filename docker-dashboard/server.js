@@ -27,6 +27,35 @@ async function saveContainerToDb(container) {
   await pool.query(query, [container.Id, container.Name, container.Image]);
 }
 
+async function saveContainerMetricsToDb(stats, dockerId) {
+  const containerResult = await pool.query(
+    "SELECT id FROM container WHERE docker_id = $1",
+    [dockerId]
+  );
+  if (containerResult.rows.length === 0) {
+    console.error("Container not found in database:", dockerId);
+    return;
+  }
+  const containerId = containerResult.rows[0].id;
+
+  const cpuDelta =
+    stats.cpu_stats.cpu_usage.total_usage -
+    stats.precpu_stats.cpu_usage.total_usage;
+  const systemDelta =
+    stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+  const numCpus = stats.cpu_stats.online_cpus || 1;
+  const cpuPercent =
+    systemDelta > 0 ? (cpuDelta / systemDelta) * numCpus * 100 : 0;
+
+  const memoryMb = stats.memory_stats.usage / (1024 * 1024);
+
+  const query = `
+    INSERT INTO container_metrics (time, container_id, cpu_usage_percent, memory_usage_mb)
+    VALUES (NOW(), $1, $2, $3)
+  `;
+  await pool.query(query, [containerId, cpuPercent, memoryMb]);
+}
+
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
 const port = 3000;
@@ -104,6 +133,13 @@ app.prepare().then(() => {
               Status: containerInfo.State.Status,
             };
             io.emit("status-change", statusChangeObj);
+
+            // Start/stop stats monitoring based on container state
+            if (eventData.status === "start") {
+              monitorContainerStats(containerInfo.Id);
+            } else if (eventData.status === "stop" || eventData.status === "die") {
+              stopMonitoringContainer(containerInfo.Id);
+            }
           }
         } catch (error) {
           console.error("Error processing Event Chunk", error);
@@ -150,37 +186,66 @@ app.prepare().then(() => {
   monitorDockerEvents();
 
   //----Container Stats Stream----
-  async function monitorContainerStats() {
+  const statsStreams = new Map();
+
+  async function monitorContainerStats(containerId) {
+    if (statsStreams.has(containerId)) {
+      return;
+    }
+
     try {
-      const container = docker.getContainer(
-        "a6041512c24fb8fb4cfdcc95245428a8131581e471e3e5311b696dacdf52c3de"
-      );
+      const container = docker.getContainer(containerId);
+      const info = await container.inspect();
+
+      if (info.State.Status !== "running") {
+        return;
+      }
 
       const stream = await container.stats({ stream: true });
+      statsStreams.set(containerId, stream);
 
-      console.log("Attached to stats stream...");
+      console.log(`Attached to stats stream for container ${containerId.substring(0, 12)}...`);
       stream.setEncoding("utf8");
 
       stream.on("data", (chunk) => {
         try {
           const data = JSON.parse(chunk);
+          saveContainerMetricsToDb(data, containerId);
         } catch (err) {
           console.error("Error parsing Chunk:", err);
         }
       });
 
       stream.on("end", () => {
-        console.log("Stream ended");
+        console.log(`Stream ended for container ${containerId.substring(0, 12)}`);
+        statsStreams.delete(containerId);
       });
 
       stream.on("error", (error) => {
-        console.error("Stream error:", error);
+        console.error(`Stream error for container ${containerId.substring(0, 12)}:`, error);
+        statsStreams.delete(containerId);
       });
     } catch (error) {
-      console.error("Failed to get Stats: ", error);
+      console.error(`Failed to get stats for container ${containerId.substring(0, 12)}:`, error);
     }
   }
 
+  function stopMonitoringContainer(containerId) {
+    const stream = statsStreams.get(containerId);
+    if (stream) {
+      stream.destroy();
+      statsStreams.delete(containerId);
+      console.log(`Stopped monitoring container ${containerId.substring(0, 12)}`);
+    }
+  }
+
+  async function monitorAllContainers() {
+    for (const container of containers) {
+      await monitorContainerStats(container.Id);
+    }
+  }
+
+  monitorAllContainers();
   httpServer
     .once("error", (err) => {
       console.error(err);
