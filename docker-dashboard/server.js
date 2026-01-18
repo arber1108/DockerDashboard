@@ -2,6 +2,8 @@ import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import Docker from "dockerode";
+import pg from "pg";
+import "dotenv/config";
 
 var socket =
   process.platform === "win32"
@@ -11,6 +13,19 @@ var socket =
 console.log(socket);
 
 var docker = new Docker({ socketPath: socket });
+
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+async function saveContainerToDb(container) {
+  const query = `
+    INSERT INTO container (docker_id, name, created_at, image)
+    VALUES ($1, $2, NOW(), $3)
+    ON CONFLICT (docker_id) DO NOTHING
+  `;
+  await pool.query(query, [container.Id, container.Name, container.Image]);
+}
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
@@ -53,8 +68,15 @@ app.prepare().then(() => {
               Image: containerInfo.Config.Image,
             };
 
-            containers.push(containerObject);
-            io.emit("new-container", containerObject);
+            if (!containers.some((c) => c.Id === containerObject.Id)) {
+              containers.push(containerObject);
+              io.emit("new-container", containerObject);
+              try {
+                await saveContainerToDb(containerObject);
+              } catch (dbErr) {
+                console.error("Error saving container to db:", dbErr);
+              }
+            }
           }
 
           //----Deleting Container----
@@ -94,7 +116,7 @@ app.prepare().then(() => {
     });
   }
 
-  docker.listContainers({ all: true }, (err, containersList) => {
+  docker.listContainers({ all: true }, async (err, containersList) => {
     if (!err) {
       const data = containersList.map((container) => ({
         Id: container.Id,
@@ -103,8 +125,18 @@ app.prepare().then(() => {
         Image: container.Image,
       }));
 
-      console.log("Contaienr-Data: ", data);
+      console.log("Container-Data: ", data);
       containers = data;
+
+      // Save containers to database
+      for (const container of data) {
+        try {
+          await saveContainerToDb(container);
+        } catch (dbErr) {
+          console.error("Error saving container to db:", dbErr);
+        }
+      }
+      console.log("Initial containers saved to database");
     } else {
       console.log("Error listing containers: ", err);
     }
