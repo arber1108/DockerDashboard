@@ -137,7 +137,16 @@ app.prepare().then(() => {
               Id: containerInfo.Id,
               Status: containerInfo.State.Status,
             };
+
+            // Update local containers array
+            containers = containers.map((c) =>
+              c.Id === statusChangeObj.Id
+                ? { ...c, Status: statusChangeObj.Status }
+                : c
+            );
+
             io.emit("status-change", statusChangeObj);
+            console.log("Status change:", statusChangeObj.Id.substring(0, 12), "->", statusChangeObj.Status);
 
             // Start/stop stats monitoring based on container state
             if (eventData.status === "start") {
