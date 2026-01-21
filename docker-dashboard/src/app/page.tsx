@@ -32,53 +32,50 @@ export default function Home() {
     socket.emit("saveStats", newValue);
   }
   useEffect(() => {
+    if (socket.connected) {
+      setIsConnected(true);
+      socket.emit("request-containers");
+    }
+
     function onConnect() {
       setIsConnected(true);
+      socket.emit("request-containers");
     }
 
     function onDisconnect() {
       setIsConnected(false);
     }
 
-    function onNewContainer(newContainer: Container) {
-      setContainerObject((prev) => [...prev, newContainer]);
-    }
-
-    socket.on("connectToClient", onConnect);
+    socket.on("connect", onConnect);
+    socket.on("connectToClient", () => setIsConnected(true));
     socket.on("disconnect", onDisconnect);
     socket.on("new-container", (arg) => {
-      onNewContainer(arg);
+      setContainerObject((prev) => [...prev, arg]);
     });
     socket.on("container-deleted", (arg) => {
-      const newContainerObject = containerObject.filter((c) => c.Id !== arg);
-      setContainerObject(newContainerObject);
+      setContainerObject((prev) => prev.filter((c) => c.Id !== arg));
     });
-
     socket.on("initial-containers", (arg) => {
       setContainerObject(arg);
     });
     socket.on("status-change", (arg) => {
-      console.log("UpdatedContaienrObj: ", arg);
-
-      let updatedContainerObj = containerObject.map((item) => {
-        if (item.Id === arg.Id) {
-          return { ...item, Status: arg.Status };
-        }
-        return item;
-      });
-
-      setContainerObject(updatedContainerObj);
+      setContainerObject((prev) =>
+        prev.map((item) =>
+          item.Id === arg.Id ? { ...item, Status: arg.Status } : item,
+        ),
+      );
     });
 
     return () => {
       socket.off("connect", onConnect);
+      socket.off("connectToClient");
       socket.off("disconnect", onDisconnect);
       socket.off("new-container");
       socket.off("initial-containers");
       socket.off("container-deleted");
       socket.off("status-change");
     };
-  }, [containerObject]);
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen">

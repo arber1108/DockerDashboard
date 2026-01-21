@@ -192,6 +192,10 @@ app.prepare().then(() => {
     socket.emit("connectToClient");
     socket.emit("initial-containers", containers);
 
+    socket.on("request-containers", () => {
+      socket.emit("initial-containers", containers);
+    });
+
     socket.on("saveStats", (saveStats) => {
       saveToDB = saveStats;
       console.log("Set state for saving to DB to: ", saveToDB);
