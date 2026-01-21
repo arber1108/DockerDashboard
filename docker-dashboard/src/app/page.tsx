@@ -11,6 +11,8 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { io } from "socket.io-client";
 
 interface Container {
   Id: string;
@@ -22,7 +24,13 @@ interface Container {
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
   const [containerObject, setContainerObject] = useState<Container[]>([]);
+  const [saveStats, setSaveStats] = useState(false);
 
+  function saveToDB() {
+    const newValue = !saveStats;
+    setSaveStats(newValue);
+    socket.emit("saveStats", newValue);
+  }
   useEffect(() => {
     function onConnect() {
       setIsConnected(true);
@@ -75,12 +83,26 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       <h1 className="ml-5 pt-5 text-6xl font-bold">Docker Dashboard</h1>
-      <p className="ml-6 pt-2">
-        Status:{" "}
-        <span className={isConnected ? "text-green-500" : "text-red-500"}>
-          {isConnected ? "connected" : "disconnected"}
-        </span>
-      </p>
+
+      <div className="flex justify-between">
+        <p className="ml-6 pt-2">
+          Status:{" "}
+          <span className={isConnected ? "text-green-500" : "text-red-500"}>
+            {isConnected ? "connected" : "disconnected"}
+          </span>
+        </p>
+        <div className="mr-5">
+          {saveStats ? (
+            <Button variant="outline" onClick={() => saveToDB()}>
+              Stop saving to DB
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => saveToDB()}>
+              Start saving to DB
+            </Button>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-5">
         {containerObject.map((container) => (
@@ -106,10 +128,10 @@ export default function Home() {
                     container.Status === "running"
                       ? "border-emerald-500 text-emerald-500"
                       : container.Status === "exited"
-                      ? "border-rose-500 text-rose-500"
-                      : container.Status === "paused"
-                      ? "border-yellow-500 text-yellow-500"
-                      : "border-slate-500"
+                        ? "border-rose-500 text-rose-500"
+                        : container.Status === "paused"
+                          ? "border-yellow-500 text-yellow-500"
+                          : "border-slate-500"
                   }
                 >
                   {container.Status}

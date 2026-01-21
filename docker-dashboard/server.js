@@ -5,6 +5,8 @@ import Docker from "dockerode";
 import pg from "pg";
 import "dotenv/config";
 
+let saveToDB = false;
+
 var socket =
   process.platform === "win32"
     ? "//./pipe/docker_engine"
@@ -28,9 +30,12 @@ async function saveContainerToDb(container) {
 }
 
 async function saveContainerMetricsToDb(stats, dockerId) {
+  if (saveToDB === false) {
+    return;
+  }
   const containerResult = await pool.query(
     "SELECT id FROM container WHERE docker_id = $1",
-    [dockerId]
+    [dockerId],
   );
   if (containerResult.rows.length === 0) {
     console.error("Container not found in database:", dockerId);
@@ -137,7 +142,10 @@ app.prepare().then(() => {
             // Start/stop stats monitoring based on container state
             if (eventData.status === "start") {
               monitorContainerStats(containerInfo.Id);
-            } else if (eventData.status === "stop" || eventData.status === "die") {
+            } else if (
+              eventData.status === "stop" ||
+              eventData.status === "die"
+            ) {
               stopMonitoringContainer(containerInfo.Id);
             }
           }
@@ -173,6 +181,8 @@ app.prepare().then(() => {
         }
       }
       console.log("Initial containers saved to database");
+
+      monitorAllContainers();
     } else {
       console.log("Error listing containers: ", err);
     }
@@ -181,6 +191,11 @@ app.prepare().then(() => {
   io.on("connection", (socket) => {
     socket.emit("connectToClient");
     socket.emit("initial-containers", containers);
+
+    socket.on("saveStats", (saveStats) => {
+      saveToDB = saveStats;
+      console.log("Set state for saving to DB to: ", saveToDB);
+    });
   });
 
   monitorDockerEvents();
@@ -204,7 +219,9 @@ app.prepare().then(() => {
       const stream = await container.stats({ stream: true });
       statsStreams.set(containerId, stream);
 
-      console.log(`Attached to stats stream for container ${containerId.substring(0, 12)}...`);
+      console.log(
+        `Attached to stats stream for container ${containerId.substring(0, 12)}...`,
+      );
       stream.setEncoding("utf8");
 
       stream.on("data", (chunk) => {
@@ -217,16 +234,24 @@ app.prepare().then(() => {
       });
 
       stream.on("end", () => {
-        console.log(`Stream ended for container ${containerId.substring(0, 12)}`);
+        console.log(
+          `Stream ended for container ${containerId.substring(0, 12)}`,
+        );
         statsStreams.delete(containerId);
       });
 
       stream.on("error", (error) => {
-        console.error(`Stream error for container ${containerId.substring(0, 12)}:`, error);
+        console.error(
+          `Stream error for container ${containerId.substring(0, 12)}:`,
+          error,
+        );
         statsStreams.delete(containerId);
       });
     } catch (error) {
-      console.error(`Failed to get stats for container ${containerId.substring(0, 12)}:`, error);
+      console.error(
+        `Failed to get stats for container ${containerId.substring(0, 12)}:`,
+        error,
+      );
     }
   }
 
@@ -235,7 +260,9 @@ app.prepare().then(() => {
     if (stream) {
       stream.destroy();
       statsStreams.delete(containerId);
-      console.log(`Stopped monitoring container ${containerId.substring(0, 12)}`);
+      console.log(
+        `Stopped monitoring container ${containerId.substring(0, 12)}`,
+      );
     }
   }
 
@@ -245,7 +272,6 @@ app.prepare().then(() => {
     }
   }
 
-  monitorAllContainers();
   httpServer
     .once("error", (err) => {
       console.error(err);
