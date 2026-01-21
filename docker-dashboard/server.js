@@ -62,7 +62,7 @@ async function saveContainerMetricsToDb(stats, dockerId) {
 }
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = "localhost";
+const hostname = "0.0.0.0";
 const port = 3000;
 const app = next({ dev, hostname, port });
 const handler = app.getRequestHandler();
@@ -72,9 +72,16 @@ let containers = [];
 app.prepare().then(() => {
   const httpServer = createServer(handler);
 
-  const io = new Server(httpServer);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+    transports: ["websocket", "polling"],
+  });
 
   function monitorDockerEvents() {
+    console.log("Setting up Docker events monitor...");
     const filters = {
       type: ["container"],
       event: ["start", "die", "pause", "stop", "create", "destroy"],
@@ -85,14 +92,22 @@ app.prepare().then(() => {
         console.log("Error getting Docker Events: ", err);
         return;
       }
+      console.log("Docker events stream connected successfully");
 
       stream.on("data", async (chunk) => {
         try {
           const eventData = JSON.parse(chunk.toString());
+          const eventStatus = eventData.status || eventData.Action;
+          console.log(
+            "Docker event:",
+            eventStatus,
+            "id:",
+            eventData.Actor?.ID?.substring(0, 12),
+          );
           const container = docker.getContainer(eventData.Actor.ID);
 
           //----Creating new Container----
-          if (eventData.status == "create") {
+          if (eventStatus === "create") {
             const containerInfo = await container.inspect();
             console.log(eventData);
             const containerObject = {
@@ -114,7 +129,7 @@ app.prepare().then(() => {
           }
 
           //----Deleting Container----
-          if (eventData.status === "destroy") {
+          if (eventStatus === "destroy") {
             const deletedId = eventData.Actor.ID;
             console.log("Removing container with ID:", deletedId);
 
@@ -127,10 +142,10 @@ app.prepare().then(() => {
 
           //----Status Change----
           if (
-            eventData.status === "start" ||
-            eventData.status === "stop" ||
-            eventData.status === "die" ||
-            eventData.status === "pause"
+            eventStatus === "start" ||
+            eventStatus === "stop" ||
+            eventStatus === "die" ||
+            eventStatus === "pause"
           ) {
             const containerInfo = await container.inspect();
             const statusChangeObj = {
@@ -142,19 +157,21 @@ app.prepare().then(() => {
             containers = containers.map((c) =>
               c.Id === statusChangeObj.Id
                 ? { ...c, Status: statusChangeObj.Status }
-                : c
+                : c,
             );
 
             io.emit("status-change", statusChangeObj);
-            console.log("Status change:", statusChangeObj.Id.substring(0, 12), "->", statusChangeObj.Status);
+            console.log(
+              "Status change:",
+              statusChangeObj.Id.substring(0, 12),
+              "->",
+              statusChangeObj.Status,
+            );
 
             // Start/stop stats monitoring based on container state
-            if (eventData.status === "start") {
+            if (eventStatus === "start") {
               monitorContainerStats(containerInfo.Id);
-            } else if (
-              eventData.status === "stop" ||
-              eventData.status === "die"
-            ) {
+            } else if (eventStatus === "stop" || eventStatus === "die") {
               stopMonitoringContainer(containerInfo.Id);
             }
           }

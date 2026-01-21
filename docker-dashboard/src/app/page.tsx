@@ -59,11 +59,14 @@ export default function Home() {
       setContainerObject(arg);
     });
     socket.on("status-change", (arg) => {
-      setContainerObject((prev) =>
-        prev.map((item) =>
+      console.log("Received status-change:", arg);
+      setContainerObject((prev) => {
+        console.log("Current containers:", prev.map(c => c.Id.substring(0, 12)));
+        console.log("Looking for ID:", arg.Id.substring(0, 12));
+        return prev.map((item) =>
           item.Id === arg.Id ? { ...item, Status: arg.Status } : item,
-        ),
-      );
+        );
+      });
     });
 
     return () => {
