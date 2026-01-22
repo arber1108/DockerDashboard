@@ -10,6 +10,8 @@ export const socket = io({
   timeout: 20000,
 });
 
+/*
+
 socket.on("connect", () => console.log("Socket connected:", socket.id));
 socket.on("disconnect", (reason) =>
   console.log("Socket disconnected:", reason),
@@ -17,3 +19,4 @@ socket.on("disconnect", (reason) =>
 socket.on("connect_error", (err) =>
   console.log("Socket connect error:", err.message),
 );
+*/

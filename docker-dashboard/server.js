@@ -29,6 +29,22 @@ async function saveContainerToDb(container) {
   await pool.query(query, [container.Id, container.Name, container.Image]);
 }
 
+function convertCPUToPercent(stats) {
+  const cpuDelta =
+    stats.cpu_stats.cpu_usage.total_usage -
+    stats.precpu_stats.cpu_usage.total_usage;
+  const systemDelta =
+    stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+  const numCpus = stats.cpu_stats.online_cpus || 1;
+  const cpuPercent =
+    systemDelta > 0 ? (cpuDelta / systemDelta) * numCpus * 100 : 0;
+
+  if (cpuPercent > 100) {
+    return 100;
+  }
+  return cpuPercent;
+}
+
 async function saveContainerMetricsToDb(stats, dockerId) {
   if (saveToDB === false) {
     return;
@@ -43,15 +59,7 @@ async function saveContainerMetricsToDb(stats, dockerId) {
   }
   const containerId = containerResult.rows[0].id;
 
-  const cpuDelta =
-    stats.cpu_stats.cpu_usage.total_usage -
-    stats.precpu_stats.cpu_usage.total_usage;
-  const systemDelta =
-    stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
-  const numCpus = stats.cpu_stats.online_cpus || 1;
-  const cpuPercent =
-    systemDelta > 0 ? (cpuDelta / systemDelta) * numCpus * 100 : 0;
-
+  const cpuPercent = convertCPUToPercent(stats);
   const memoryMb = stats.memory_stats.usage / (1024 * 1024);
 
   const query = `
@@ -222,6 +230,20 @@ app.prepare().then(() => {
       socket.emit("initial-containers", containers);
     });
 
+    socket.on("subscribe-container-stats", (containerId) => {
+      socket.join(`stats-${containerId}`);
+      console.log(
+        `Socket ${socket.id} subscribed to ${containerId.substring(0, 12)}`,
+      );
+    });
+
+    socket.on("unsubscribe-container-stats", (containerId) => {
+      socket.leave(`stats-${containerId}`);
+      console.log(
+        `Socket ${socket.id} unsubscribed from ${containerId.substring(0, 12)}`,
+      );
+    });
+
     socket.on("saveStats", (saveStats) => {
       saveToDB = saveStats;
       console.log("Set state for saving to DB to: ", saveToDB);
@@ -232,6 +254,8 @@ app.prepare().then(() => {
 
   //----Container Stats Stream----
   const statsStreams = new Map();
+  const lastStatsTime = new Map();
+  const STATS_INTERVAL_MS = 3000;
 
   async function monitorContainerStats(containerId) {
     if (statsStreams.has(containerId)) {
@@ -256,8 +280,22 @@ app.prepare().then(() => {
 
       stream.on("data", (chunk) => {
         try {
+          const now = Date.now();
+          const lastTime = lastStatsTime.get(containerId) || 0;
+
+          if (now - lastTime < STATS_INTERVAL_MS) {
+            return;
+          }
+          lastStatsTime.set(containerId, now);
+
           const data = JSON.parse(chunk);
           saveContainerMetricsToDb(data, containerId);
+          const statsObject = {
+            containerId,
+            cpuPercent: convertCPUToPercent(data),
+            time: new Date(data.read).toLocaleTimeString("en-GB"),
+          };
+          io.to(`stats-${containerId}`).emit("percentage-data", statsObject);
         } catch (err) {
           console.error("Error parsing Chunk:", err);
         }
@@ -268,6 +306,7 @@ app.prepare().then(() => {
           `Stream ended for container ${containerId.substring(0, 12)}`,
         );
         statsStreams.delete(containerId);
+        lastStatsTime.delete(containerId);
       });
 
       stream.on("error", (error) => {
@@ -276,6 +315,7 @@ app.prepare().then(() => {
           error,
         );
         statsStreams.delete(containerId);
+        lastStatsTime.delete(containerId);
       });
     } catch (error) {
       console.error(
@@ -290,6 +330,7 @@ app.prepare().then(() => {
     if (stream) {
       stream.destroy();
       statsStreams.delete(containerId);
+      lastStatsTime.delete(containerId);
       console.log(
         `Stopped monitoring container ${containerId.substring(0, 12)}`,
       );

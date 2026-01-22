@@ -1,4 +1,5 @@
 import { getContainerById, getContainerStats } from "@/app/actions/container";
+import { ChartLineStep } from "@/components/chart-line-step";
 
 export default async function ContainerDetails({
   params,
@@ -13,6 +14,9 @@ export default async function ContainerDetails({
     <>
       {" "}
       <h1>Container Details {resolvedParams.containerId}</h1>
+      <div className="grid grid-cols-3 m-10">
+        <ChartLineStep containerId={resolvedParams.containerId} />
+      </div>
     </>
   );
 }
