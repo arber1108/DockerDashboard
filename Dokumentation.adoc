@@ -15,10 +15,14 @@
 == Tech Stack
 
 * Docker API (https://docs.docker.com/reference/api/engine/version/v1.52/)
-* NextJS (https://nextjs.org/) mit Custom Server
+* NextJS 16 (https://nextjs.org/) mit Custom Server
+* React 19
 * Shadcn (https://ui.shadcn.com/) Component Library
 * Socket.IO (https://socket.io/) für Real Time updates
+* Recharts (https://recharts.org/) für Diagramme
 * PostgresDB mit TimescaleDB plugin
+* Dockerode als Docker API Client
+* Tailwind CSS für Styling
 
 == Skateboard
 
@@ -94,7 +98,33 @@ Der Custom Server (`server.js`) verwendet:
 |`new-container` |Server → Client |Neuer Container wurde erstellt
 |`container-deleted` |Server → Client |Container wurde gelöscht
 |`status-change` |Server → Client |Container Status hat sich geändert
+|`percentage-data` |Server → Client |CPU Usage Daten für abonnierte Container
+|`request-containers` |Client → Server |Fordert Container-Liste an
+|`subscribe-container-stats` |Client → Server |Abonniert Stats eines Containers
+|`unsubscribe-container-stats` |Client → Server |Beendet Stats-Abo eines Containers
+|`saveStats` |Client → Server |Aktiviert/Deaktiviert Speichern in DB
 |===
+
+== Implementierte Features
+
+=== Homepage
+* Zeigt alle Docker Container als Karten an
+* Container Name, Image und Status werden dargestellt
+* Farbcodierte Status-Badges (grün = running, rot = exited, gelb = paused)
+* Echtzeit-Updates bei Container-Änderungen via Socket.IO
+* Verbindungsstatus-Anzeige (connected/disconnected)
+* Toggle-Button um Metriken-Speicherung in DB zu aktivieren/deaktivieren
+
+=== Container Detail Seite
+* Erreichbar unter `/containers/[containerId]`
+* Zeigt CPU-Auslastung als echtzeit Diagramm
+* Updates alle 3 Sekunden
+* Verwendet Recharts für die Visualisierung
+
+=== Metriken-Streaming
+* Server streamt CPU-Statistiken für laufende Container
+* Client kann sich für bestimmte Container subscriben
+* Daten werden in TimescaleDB gespeichert
 
 === Docker Events
 
@@ -120,6 +150,9 @@ Der Server überwacht folgende Docker Events:
 # TimescaleDB starten
 docker compose up -d timescaledb
 
+# Datenbank initialisieren
+psql -h localhost -U <username> -d docker_dashboard -f init.sql
+
 # Dependencies installieren
 npm install
 
@@ -137,4 +170,30 @@ NODE_ENV=development
 DATABASE_URL=postgresql://<user>:<password>@localhost:5432/docker_dashboard
 ----
 
+== Projektstruktur
+
+[source]
+----
+docker-dashboard/
+├── server.js                 # Custom Node.js Server mit Socket.IO
+├── socket.ts                 # Socket.IO Client Konfiguration
+├── init.sql                  # Datenbank Setup Script
+├── src/
+│   ├── app/
+│   │   ├── page.tsx          # Homepage mit Container-Übersicht
+│   │   ├── layout.tsx        # Root Layout
+│   │   ├── actions/
+│   │   │   └── container.ts  # Server Actions für Docker API
+│   │   └── containers/
+│   │       └── [containerId]/
+│   │           └── page.tsx  # Container Detail Seite
+│   ├── components/
+│   │   ├── chart-line-step.tsx  # CPU Usage Chart Komponente
+│   │   ├── app-sidebar.tsx
+│   │   └── ui/               # Wiederverwendbare UI Komponenten
+│   ├── hooks/
+│   │   └── use-mobile.ts
+│   └── lib/
+│       └── utils.ts
+----
 
