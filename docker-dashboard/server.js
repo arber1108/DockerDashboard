@@ -290,11 +290,21 @@ app.prepare().then(() => {
 
           const data = JSON.parse(chunk);
           saveContainerMetricsToDb(data, containerId);
+
           const statsObject = {
             containerId,
             cpuPercent: convertCPUToPercent(data),
             time: new Date(data.read).toLocaleTimeString("en-GB"),
           };
+
+          const memoryObject = {
+            containerId,
+            memoryInMb: data.memory_stats.usage / (1024 * 1024),
+            time: new Date(data.read).toLocaleTimeString("en-GB"),
+            limit: data.memory_stats.limit / (1024 * 1024),
+          };
+
+          io.to(`stats-${containerId}`).emit("memory-data", memoryObject);
           io.to(`stats-${containerId}`).emit("percentage-data", statsObject);
         } catch (err) {
           console.error("Error parsing Chunk:", err);

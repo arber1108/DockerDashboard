@@ -1,6 +1,5 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { socket } from "../socket";
 import { useState, useEffect } from "react";
@@ -14,10 +13,11 @@ import {
 
 export const description = "A line chart with step";
 
-interface percentageStats {
+interface memoryStats {
   containerId: string;
   time: string;
-  cpuPercent: number;
+  memoryInMb: number;
+  limit: number;
 }
 
 interface ChartLineStepProps {
@@ -33,36 +33,39 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function ChartLineStep({ containerId }: ChartLineStepProps) {
-  const [percentageData, setPercentageData] = useState<percentageStats[]>([]);
+export function ChartLineStepMemory({ containerId }: ChartLineStepProps) {
+  const [memoryData, setMemoryData] = useState<memoryStats[]>([]);
+
+  const memoryLimit =
+    memoryData.length > 0 ? Math.round(memoryData[0].limit) : undefined;
 
   useEffect(() => {
     socket.emit("subscribe-container-stats", containerId);
 
-    const handleData = (data: percentageStats) => {
+    const handleData = (data: memoryStats) => {
       if (data.containerId === containerId) {
-        setPercentageData((prev) => [...prev, data].slice(-MAX_SIZE));
+        setMemoryData((prev) => [...prev, data].slice(-MAX_SIZE));
       }
     };
 
-    socket.on("percentage-data", handleData);
+    socket.on("memory-data", handleData);
 
     return () => {
       socket.emit("unsubscribe-container-stats", containerId);
-      socket.off("percentage-data", handleData);
+      socket.off("memory-data", handleData);
     };
   }, [containerId]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>CPU Usage in %</CardTitle>
+        <CardTitle>Memory Usage (MB)</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>
           <LineChart
             accessibilityLayer
-            data={percentageData}
+            data={memoryData}
             margin={{
               left: 12,
               right: 12,
@@ -76,13 +79,18 @@ export function ChartLineStep({ containerId }: ChartLineStepProps) {
               axisLine={false}
               tickMargin={8}
             />
-            <YAxis domain={[0, 100]} tickLine={false} axisLine={false} />
+            <YAxis
+              domain={[0, memoryLimit ?? "auto"]}
+              tickLine={false}
+              axisLine={false}
+            />
+
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent hideLabel color="cyan" />}
             />
             <Line
-              dataKey="cpuPercent"
+              dataKey="memoryInMb"
               type="step"
               stroke="var(--color-desktop)"
               strokeWidth={2}
