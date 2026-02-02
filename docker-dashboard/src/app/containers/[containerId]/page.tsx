@@ -1,5 +1,5 @@
 "use client";
-import { useParams } from "next/navigation";
+import { redirect, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   getContainerById,
@@ -7,6 +7,7 @@ import {
   startContainer,
   stopContainer,
   restartContainer,
+  removeContainer,
 } from "@/app/actions/container";
 import { ChartLineStep } from "@/components/chart-line-step";
 import { ChartLineStepMemory } from "@/components/chart-line-step-memory";
@@ -34,28 +35,53 @@ export default function ContainerDetails() {
     refreshInfo();
   };
 
+  function hanldeDelete() {
+    removeContainer(containerId);
+    redirect("/");
+  }
+
   if (!containerInfo) return <p>Loading...</p>;
 
   const status: string = containerInfo.State?.Status ?? "unknown";
 
   return (
     <>
-      <div className="flex items-center gap-3 m-10 mb-0">
-        <h1 className="text-2xl font-bold">Container Details</h1>
-        <Badge
-          variant="outline"
-          className={
-            status === "running"
-              ? "border-emerald-500 text-emerald-500"
-              : status === "exited"
-                ? "border-rose-500 text-rose-500"
-                : status === "paused"
-                  ? "border-yellow-500 text-yellow-500"
-                  : "border-slate-500 text-slate-500"
-          }
-        >
-          {status}
-        </Badge>
+      <div className="flex justify-between">
+        <div className="flex items-center gap-3 m-10 mb-0">
+          <h1 className="text-2xl font-bold">
+            {containerInfo.Name.replace("/", "")}
+          </h1>
+          <Badge
+            variant="outline"
+            className={
+              status === "running"
+                ? "border-emerald-500 text-emerald-500"
+                : status === "exited"
+                  ? "border-rose-500 text-rose-500"
+                  : status === "paused"
+                    ? "border-yellow-500 text-yellow-500"
+                    : "border-slate-500 text-slate-500"
+            }
+          >
+            {status}
+          </Badge>
+        </div>
+        <div className="mr-10 mt-10 flex flex-row gap-5">
+          <Button
+            variant={"outline"}
+            onClick={() => hanldeDelete()}
+            className="border-red-700 px-10"
+          >
+            Delete
+          </Button>
+          <Button
+            variant={"outline"}
+            onClick={() => console.log(containerInfo)}
+            className="border-blue-700 px-10"
+          >
+            Log
+          </Button>
+        </div>
       </div>
       <p className="mx-10 mt-1 text-sm text-muted-foreground font-mono">
         {containerId}

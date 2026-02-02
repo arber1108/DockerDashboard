@@ -61,10 +61,16 @@ async function restartContainer(id: string) {
   await container.restart();
 }
 
+async function removeContainer(id: string) {
+  const container = docker.getContainer(id);
+  await container.remove();
+}
+
 export {
   getContainerById,
   getContainerStats,
   startContainer,
   stopContainer,
   restartContainer,
+  removeContainer,
 };
