@@ -47,24 +47,18 @@ async function getContainerStats(Id: string) {
 }
 
 async function startContainer(id: string) {
-  var container = docker.getContainer(id);
-  container.start(function (err, data) {
-    console.log(data);
-  });
+  const container = docker.getContainer(id);
+  await container.start();
 }
 
 async function stopContainer(id: string) {
-  var container = docker.getContainer(id);
-  container.stop(function (err, data) {
-    console.log(data);
-  });
+  const container = docker.getContainer(id);
+  await container.stop();
 }
 
 async function restartContainer(id: string) {
-  var container = docker.getContainer(id);
-  container.restart(function (err, data) {
-    console.log(data);
-  });
+  const container = docker.getContainer(id);
+  await container.restart();
 }
 
 export {
