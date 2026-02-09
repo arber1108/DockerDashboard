@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import { docker } from "./server/docker.js";
-import { saveContainerToDb, setSaveToDB } from "./server/db.js";
+import { saveContainerToDb, setSaveToDB, getSaveToDB } from "./server/db.js";
 import { monitorAllContainers } from "./server/stats.js";
 import { monitorDockerEvents } from "./server/events.js";
 
@@ -56,6 +56,7 @@ app.prepare().then(() => {
   io.on("connection", (socket) => {
     socket.emit("connectToClient");
     socket.emit("initial-containers", containers);
+    socket.emit("save-stats-state", getSaveToDB());
 
     socket.on("request-containers", () => {
       socket.emit("initial-containers", containers);

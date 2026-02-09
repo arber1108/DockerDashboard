@@ -60,9 +60,14 @@ function setSaveToDB(value) {
   saveToDB = value;
 }
 
+function getSaveToDB() {
+  return saveToDB;
+}
+
 export {
   saveContainerToDb,
   saveContainerMetricsToDb,
   convertCPUToPercent,
   setSaveToDB,
+  getSaveToDB,
 };

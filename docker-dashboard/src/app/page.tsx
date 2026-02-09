@@ -58,6 +58,9 @@ export default function Home() {
     socket.on("initial-containers", (arg) => {
       setContainerObject(arg);
     });
+    socket.on("save-stats-state", (value) => {
+      setSaveStats(value);
+    });
     socket.on("status-change", (arg) => {
       console.log("Received status-change:", arg);
       setContainerObject((prev) => {
@@ -76,6 +79,7 @@ export default function Home() {
       socket.off("new-container");
       socket.off("initial-containers");
       socket.off("container-deleted");
+      socket.off("save-stats-state");
       socket.off("status-change");
     };
   }, []);
