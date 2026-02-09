@@ -58,10 +58,10 @@ Speichert alle Container die auf dem System existieren.
 |===
 |Spalte |Typ |Beschreibung
 
-|id |SERIAL PRIMARY KEY |Eindeutige ID in der Datenbank
+|id |PRIMARY KEY |Eindeutige ID in der Datenbank
 |docker_id |VARCHAR(64) UNIQUE |Docker Container ID
 |name |VARCHAR(255) |Container Name
-|created_at |TIMESTAMPTZ |Zeitpunkt der Erstellung
+|created_at |TIMESTAMP |Zeitpunkt der Erstellung
 |image |VARCHAR(255) |Docker Image Name
 |===
 
@@ -74,8 +74,8 @@ Speichert CPU und Memory Metriken als Zeitreihen-Daten.
 
 |time |TIMESTAMPTZ |Zeitstempel der Messung
 |container_id |INTEGER (FK) |Referenz zur Container Tabelle
-|cpu_usage_percent |DOUBLE PRECISION |CPU Auslastung in Prozent
-|memory_usage_mb |DOUBLE PRECISION |Speicherverbrauch in MB
+|cpu_usage_percent |DOUBLE|CPU Auslastung in Prozent
+|memory_usage_mb |DOUBLE|Speicherverbrauch in MB
 |===
 
 == Server Architektur
@@ -178,22 +178,156 @@ docker-dashboard/
 ├── server.js                 # Custom Node.js Server mit Socket.IO
 ├── socket.ts                 # Socket.IO Client Konfiguration
 ├── init.sql                  # Datenbank Setup Script
+├── docker-compose.yaml       # Infrastruktur-Definition
+├── Dockerfile                # Container-Build
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx          # Homepage mit Container-Übersicht
 │   │   ├── layout.tsx        # Root Layout
 │   │   ├── actions/
 │   │   │   └── container.ts  # Server Actions für Docker API
+│   │   │   └── db.ts         # Datenbank abfragen
 │   │   └── containers/
-│   │       └── [containerId]/
-│   │           └── page.tsx  # Container Detail Seite
+│   │   │    └── [containerId]/
+│   │   │        └── page.tsx  # Container Detail Seite
+│   │   └── containerData/
+│   │       └── columns.tsx      # Spalten Definition
+│   │       └── data-table.tsx   # Tabellen Komponente
+│   │       └── page.tsx
 │   ├── components/
-│   │   ├── chart-line-step.tsx  # CPU Usage Chart Komponente
+│   │   ├── chart-line-step.tsx        # CPU Usage Chart Komponente
+│   │   ├── chart-line-step-memory.tsx # Memory Usage Chart Komponente
 │   │   ├── app-sidebar.tsx
 │   │   └── ui/               # Wiederverwendbare UI Komponenten
 │   ├── hooks/
 │   │   └── use-mobile.ts
 │   └── lib/
 │       └── utils.ts
+├── server/
+│   ├── docker.js             # Docker Client Initialisierung
+│   ├── db.js                 # PostgreSQL Datenbankoperationen
+│   ├── events.js             # Docker Event Monitoring
+│   └── stats.js              # Container Stats Streaming
 ----
+
+== Kompetenzbereiche (iPro)
+=== Bereich Software
+
+==== Analyse
+
+*Funktionale Anforderungen sammeln und validieren:*
+
+Die Anforderungen wurden aus eigenen Bedürfnissen als Docker-Nutzer abgeleitet. Die Kommandozeile (`docker ps`, `docker stats`) ist für regelmässiges Monitoring unübersichtlich. Daraus entstanden folgende Kernfunktionen:
+
+* Alle Container (laufend + gestoppt) visuell darstellen
+* Statusänderungen in Echtzeit anzeigen ohne Page-Reload
+* CPU- und Speicherverbrauch als Diagramm visualisieren
+* Container starten, stoppen, neustarten und löschen über die UI
+* Metriken optional in einer Datenbank persistieren
+* Metriken zusätzlich in einer Sortierbaren Tabelle anzeigen
+
+*Analyse der Docker Engine API:*
+
+Die Docker Engine API wurde über die Dockerode-Bibliothek analysiert, um die Möglichkeiten und Grenzen zu ermitteln. Relevante Endpunkte:
+
+* `listContainers({all: true})` -- Alle Container auflisten
+* `getContainer(id).stats({stream: true})` -- Echtzeit-Statistiken streamen
+* `getEvents({filters})` -- Docker-Events abonnieren (start, die, stop, create, destroy)
+
+Die Stats liefern rohe Systemwerte, die umgerechnet werden müssen:
+
+* *CPU*: `(cpuDelta / systemDelta) * cpuCores * 100` ergibt Prozent
+* *Memory*: `memory_stats.usage / (1024 * 1024)` ergibt MB
+
+==== Design
+
+*Softwaresystem-Design inkl. Datenbank:*
+
+Das System folgt einer Client-Server-Architektur mit Echtzeit-Kommunikation via Socket.IO. Das Design besteht aus:
+
+* *Frontend (Next.js/React)*: Rendert Container-Karten und Charts, empfängt Events über Socket.IO
+* *Custom Server (server.js)*: Verbindet Next.js mit Socket.IO und Dockerode, steuert Event- und Stats-Streaming
+* *Server-Module*: Aufgeteilt in `docker.js` (Client), `events.js` (Event-Monitoring), `stats.js` (Stats-Streaming), `db.js` (Datenbankzugriff)
+* *Datenbank*: PostgreSQL mit TimescaleDB für Zeitreihen-Metriken (siehe Abschnitt Datenbank Schema)
+
+Das Subscription-Modell für Stats nutzt Socket.IO Rooms: Clients abonnieren nur den Container, den sie gerade betrachten. So wird unnötiger Netzwerk-Traffic vermieden.
+
+==== Umsetzung
+
+*Softwaresystem entwickeln, testen und bereitstellen:*
+
+* Frontend mit Next.js 16, React 19 und TypeScript entwickelt
+* Container-Operationen als Next.js Server Actions implementiert (`src/app/actions/container.ts`) mit async/await
+* Echtzeit-Charts mit Recharts (Step-Line-Charts für CPU und Memory)
+* Socket.IO-basierte Live-Updates
+* Stats-Streaming mit 3-Sekunden-Throttling zur Lastbegrenzung
+* Datenbank-Metriken über Toggle ein-/ausschaltbar
+
+=== Bereich Infrastruktur
+
+==== Analyse
+
+*Analyse der Infrastruktur-Anforderungen:*
+
+Für den Betrieb wurden folgende Anforderungen analysiert:
+
+* *Docker-Socket-Zugriff*: Die Anwendung muss auf den Docker-Socket des Hosts zugreifen. Unter Linux ist das `/var/run/docker.sock`, unter Windows `//./pipe/docker_engine`. Der Socket-Zugriff gewährt Kontrolle über den Host.
+* *Datenbank*: Für die Speicherung der Metriken wurde Postgresql benutzt mit dem TimescaleDB plugin.
+* *Deployment*: Die gesamte Infrastruktur soll mit einem einzigen Befehl startbar sein.
+
+==== Design
+
+*Spezifikation der containerisierten Infrastruktur:*
+
+Die Infrastruktur wird mit Docker Compose definiert und besteht aus zwei Services:
+
+[source,yaml]
+----
+services:
+  docker-dashboard:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - timescaledb
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg17
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+----
+
+Designentscheide:
+
+* *Host-Socket Mount statt Docker-in-Docker*: Einfacher und performanter
+* *TimescaleDB als Extension*: Kein zusätzlicher Service nötig, PostgreSQL bleibt voll nutzbar
+* *Named Volume für DB-Daten*: Daten überleben Container-Neustarts
+* *Init-Script via Entrypoint*: Schema wird automatisch beim ersten Start erstellt
+
+==== Umsetzung
+
+*Infrastruktur einrichten, testen und zur Verfügung stellen:*
+
+Die Infrastruktur wird mit einem Befehl gestartet:
+
+[source,bash]
+----
+docker compose up --build
+----
+
+Die plattformübergreifende Docker-Anbindung in `server/docker.js`:
+
+[source,javascript]
+----
+const socketPath = process.platform === "win32"
+    ? "//./pipe/docker_engine"
+    : "/var/run/docker.sock";
+----
+
+
 

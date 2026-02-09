@@ -6,7 +6,7 @@ function monitorDockerEvents(io, containers, callbacks) {
   console.log("Setting up Docker events monitor...");
   const filters = {
     type: ["container"],
-    event: ["start", "die", "pause", "stop", "create", "destroy"],
+    event: ["start", "die", "pause", "unpause", "stop", "create", "destroy"],
   };
 
   docker.getEvents({ filters }, (err, stream) => {
@@ -66,7 +66,8 @@ function monitorDockerEvents(io, containers, callbacks) {
           eventStatus === "start" ||
           eventStatus === "stop" ||
           eventStatus === "die" ||
-          eventStatus === "pause"
+          eventStatus === "pause" ||
+          eventStatus === "unpause"
         ) {
           const containerInfo = await container.inspect();
           const statusChangeObj = {

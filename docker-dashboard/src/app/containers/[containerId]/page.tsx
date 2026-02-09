@@ -7,7 +7,10 @@ import {
   startContainer,
   stopContainer,
   restartContainer,
+  pauseContainer,
   removeContainer,
+  unpauseContainer,
+  getContainerLogs,
 } from "@/app/actions/container";
 import { ChartLineStep } from "@/components/chart-line-step";
 import { ChartLineStepMemory } from "@/components/chart-line-step-memory";
@@ -19,10 +22,16 @@ export default function ContainerDetails() {
   const { containerId } = useParams<{ containerId: string }>();
   const [containerInfo, setContainerInfo] = useState<any>(null);
   const [containerStats, setContainerStats] = useState<any>(null);
+  const [containerLogs, setContainerLogs] = useState<any>(null);
 
   const refreshInfo = () => {
     getContainerById(containerId).then(setContainerInfo);
   };
+
+  useEffect(() => {
+    getContainerLogs(containerId).then(setContainerLogs);
+    console.log(containerLogs);
+  }, []);
 
   useEffect(() => {
     if (!containerId) return;
@@ -112,6 +121,30 @@ export default function ContainerDetails() {
           <RotateCw className="size-4" />
           Restart
         </Button>
+        <Button
+          className="bg-yellow-500 text-white hover:bg-yellow-700"
+          onClick={() =>
+            handleAction(
+              status === "paused" ? unpauseContainer : pauseContainer,
+            )
+          }
+        >
+          {status === "paused" ? "Unpause" : "Pause"}
+        </Button>
+      </div>
+      <div className="flex justify-end m-10 ">
+        <Button
+          className="bg-blue-700"
+          onClick={() => getContainerLogs(containerId).then(setContainerLogs)}
+        >
+          Refresh
+        </Button>
+      </div>
+
+      <div className="max-h-120 m-10 bg-black rounded-3xl overflow-auto p-6">
+        <pre className="text-white text-sm font-mono whitespace-pre-wrap wrap-break-words">
+          {containerLogs}
+        </pre>
       </div>
     </>
   );

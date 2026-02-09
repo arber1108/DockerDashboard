@@ -1,6 +1,7 @@
 "use server";
 
 import Docker from "dockerode";
+import { stderr, stdout } from "process";
 
 const socket =
   process.platform === "win32"
@@ -61,11 +62,26 @@ async function restartContainer(id: string) {
   await container.restart();
 }
 
+async function pauseContainer(id: string) {
+  const container = docker.getContainer(id);
+  await container.pause();
+}
+
+async function unpauseContainer(id: string) {
+  const container = docker.getContainer(id);
+  await container.unpause();
+}
+
 async function removeContainer(id: string) {
   const container = docker.getContainer(id);
   await container.remove();
 }
 
+async function getContainerLogs(id: string) {
+  const container = docker.getContainer(id);
+  const logs = await container.logs({ stderr: true, stdout: true });
+  return logs.toString();
+}
 export {
   getContainerById,
   getContainerStats,
@@ -73,4 +89,7 @@ export {
   stopContainer,
   restartContainer,
   removeContainer,
+  pauseContainer,
+  unpauseContainer,
+  getContainerLogs,
 };
