@@ -10,13 +10,18 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Home, Layers } from "lucide-react";
+import { Home, Layers, Image as ImageIcon } from "lucide-react";
 
 const items = [
   {
     title: "Containers",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Images",
+    url: "/images",
+    icon: ImageIcon,
   },
   {
     title: "Container Data",

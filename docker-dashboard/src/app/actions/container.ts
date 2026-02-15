@@ -1,8 +1,6 @@
 "use server";
 
 import Docker from "dockerode";
-import { stderr, stdout } from "process";
-
 const socket =
   process.platform === "win32"
     ? "//./pipe/docker_engine"
